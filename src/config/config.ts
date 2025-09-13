@@ -22,7 +22,7 @@ export const DEFAULT_CONFIG: Types.Config = {
   compact_days_to_show: undefined,
   compact_events_to_show: undefined,
   compact_events_complete_days: false,
-  show_empty_days: false,
+  max_empty_days: 0,
   filter_duplicates: false,
   split_multiday_events: false,
   language: undefined,

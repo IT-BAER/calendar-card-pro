@@ -19,7 +19,7 @@ export interface Config {
   compact_days_to_show?: number;
   compact_events_to_show?: number;
   compact_events_complete_days?: boolean;
-  show_empty_days: boolean;
+  max_empty_days: number;
   filter_duplicates: boolean;
   split_multiday_events: boolean;
   language?: string;

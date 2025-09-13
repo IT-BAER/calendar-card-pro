@@ -36,6 +36,7 @@ const DEPRECATED_CONFIG_MAP: Record<string, string> = {
   vertical_line_color: 'accent_color',
   horizontal_line_width: 'day_separator_width',
   horizontal_line_color: 'day_separator_color',
+  show_empty_days: 'max_empty_days',
 };
 const DEPRECATED_ENTITY_CONFIG_MAP: Record<string, string> = {
   max_events_to_show: 'compact_events_to_show',
@@ -145,13 +146,21 @@ export class CalendarCardProEditor extends LitElement {
    * @param config Partial configuration object
    */
   setConfig(config: Partial<Types.Config>): void {
+    // Handle migration from show_empty_days (boolean) to max_empty_days (number) before processing
+    let migratedConfig = { ...config };
+    if ('show_empty_days' in config && !('max_empty_days' in config)) {
+      migratedConfig.max_empty_days = config.show_empty_days === true ? 3 : 0;
+      // Remove the old property
+      delete (migratedConfig as Record<string, unknown>).show_empty_days;
+    }
+
     // Capture unknown top-level keys to preserve custom YAML like card_mod/view_layout/etc.
     try {
       const defaultKeys = new Set(
         Object.keys(Config.DEFAULT_CONFIG as unknown as Record<string, unknown>),
       );
       const extras: Record<string, unknown> = {};
-      Object.entries(config || {}).forEach(([key, value]) => {
+      Object.entries(migratedConfig || {}).forEach(([key, value]) => {
         if (!defaultKeys.has(key)) {
           extras[key] = value;
         }
@@ -164,12 +173,12 @@ export class CalendarCardProEditor extends LitElement {
 
     // Remember the exact raw config HA provided (to preserve unknown keys even if UI changes)
     try {
-      this._originalConfigRaw = config ? JSON.parse(JSON.stringify(config)) : {};
+      this._originalConfigRaw = migratedConfig ? JSON.parse(JSON.stringify(migratedConfig)) : {};
     } catch {
-      this._originalConfigRaw = { ...(config as Record<string, unknown>) };
+      this._originalConfigRaw = { ...(migratedConfig as Record<string, unknown>) };
     }
 
-    this._config = { ...Config.DEFAULT_CONFIG, ...config };
+    this._config = { ...Config.DEFAULT_CONFIG, ...migratedConfig };
   }
 
   /**
@@ -377,7 +386,12 @@ export class CalendarCardProEditor extends LitElement {
     // Root-level deprecated params
     for (const [oldKey, newKey] of Object.entries(DEPRECATED_CONFIG_MAP)) {
       if (oldKey in config) {
-        config[newKey] = config[oldKey];
+        // Special handling for show_empty_days → max_empty_days (boolean → number)
+        if (oldKey === 'show_empty_days') {
+          config[newKey] = config[oldKey] === true ? 3 : 0; // Default to 3 empty days if true, 0 if false
+        } else {
+          config[newKey] = config[oldKey];
+        }
         delete config[oldKey];
         changed = true;
       }
@@ -721,7 +735,8 @@ export class CalendarCardProEditor extends LitElement {
             <!-- Event Visibility -->
             <h3>${this._getTranslation('event_visibility')}</h3>
             ${this.addBooleanField('show_past_events', this._getTranslation('show_past_events'))}
-            ${this.addBooleanField('show_empty_days', this._getTranslation('show_empty_days'))}
+            ${this.addTextField('max_empty_days', this._getTranslation('max_empty_days'), 'number')}
+            <div class="helper-text">${this._getTranslation('max_empty_days_note')}</div>
             ${this.addBooleanField('filter_duplicates', this._getTranslation('filter_duplicates'))}
 
             <!-- Language & Time Formats -->

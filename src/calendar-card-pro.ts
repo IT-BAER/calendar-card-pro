@@ -432,6 +432,13 @@ class CalendarCardPro extends LitElement {
     // First do the standard merging
     let mergedConfig = { ...Config.DEFAULT_CONFIG, ...config };
 
+    // Handle migration from show_empty_days (boolean) to max_empty_days (number)
+    if ('show_empty_days' in config && !('max_empty_days' in config)) {
+      mergedConfig.max_empty_days = config.show_empty_days === true ? 3 : 0;
+      // Remove the old property
+      delete (mergedConfig as Record<string, unknown>).show_empty_days;
+    }
+
     //============================================================================
     // END OF DEPRECATED PARAMETERS HANDLING
     //============================================================================

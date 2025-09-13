@@ -359,8 +359,8 @@ export function groupEventsByDay(
       }
       day.events = filteredEvents;
     }
-    // Filter out days with no visible events unless show_empty_days is true
-    if (!config.show_empty_days) {
+    // Filter out days with no visible events unless max_empty_days allows them
+    if (config.max_empty_days === 0) {
       days = days.filter(
         (day) => day.events.length > 0 && !(day.events.length === 1 && day.events[0]._isEmptyDay),
       );
@@ -450,9 +450,9 @@ export function groupEventsByDay(
   }
 
   // Empty days generation - this section needs to handle BOTH cases:
-  // 1. When show_empty_days is true AND we have some events
+  // 1. When max_empty_days > 0 AND we have some events
   // 2. When API returns no events (days array is empty)
-  if (config.show_empty_days || days.length === 0) {
+  if (config.max_empty_days > 0 || days.length === 0) {
     const translations = Localize.getTranslations(language);
 
     // Always start from the configured reference date
@@ -468,13 +468,13 @@ export function groupEventsByDay(
       endDateForEmptyDays.setDate(endDateForEmptyDays.getDate() + effectiveDaysToShow - 1);
     } else if (days.length === 0) {
       // In compact mode with NO events at all:
-      // - If show_empty_days is true: Show empty days for full range
-      // - If show_empty_days is false: Show only reference date
-      if (config.show_empty_days) {
+      // - If max_empty_days > 0: Show empty days for full range
+      // - If max_empty_days = 0: Show only reference date
+      if (config.max_empty_days > 0) {
         endDateForEmptyDays = new Date(referenceDate);
         endDateForEmptyDays.setDate(endDateForEmptyDays.getDate() + effectiveDaysToShow - 1);
       } else {
-        // When show_empty_days is false and there are no events,
+        // When max_empty_days is 0 and there are no events,
         // just show an empty day for the reference date
         endDateForEmptyDays = new Date(referenceDate);
       }
@@ -511,6 +511,13 @@ export function groupEventsByDay(
       (endDateForEmptyDays.getTime() - startDateForEmptyDays.getTime()) / (24 * 60 * 60 * 1000),
     );
 
+    // Track how many empty days we've added for "next days" (today and future) to respect max_empty_days limit
+    let nextDaysEmptyCount = 0;
+
+    // Get today's date normalized to midnight for comparison (only count today and future days towards the limit)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     // Generate empty days for any missing dates in the range
     for (let i = 0; i <= dayDiff; i++) {
       const currentDate = new Date(startDateForEmptyDays);
@@ -521,6 +528,19 @@ export function groupEventsByDay(
 
       // Only add if we don't already have events for this day
       if (!existingDayKeys.has(dateKey)) {
+        // Check if this is a "next day" (today or future) for max_empty_days limit
+        // Normalize currentDate to midnight for proper comparison
+        const currentDateNormalized = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth(),
+          currentDate.getDate(),
+        );
+        const isNextDay = currentDateNormalized >= today;
+
+        // Check if we've reached the max_empty_days limit for next days only
+        if (config.max_empty_days > 0 && isNextDay && nextDaysEmptyCount >= config.max_empty_days) {
+          break;
+        }
         // Use helper function to calculate week number with majority rule
         const weekNumber = calculateWeekNumberWithMajorityRule(currentDate, config, firstDayOfWeek);
 
@@ -547,6 +567,11 @@ export function groupEventsByDay(
         };
 
         allDays.push(dayObj);
+
+        // Increment counter only for next days (today and future)
+        if (isNextDay) {
+          nextDaysEmptyCount++;
+        }
       }
     }
 
