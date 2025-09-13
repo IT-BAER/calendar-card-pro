@@ -46,12 +46,14 @@ export function renderMainCardStructure(
     pointerLeave: (ev: Event) => void;
   },
   maxHeightSet: boolean = false,
+  isLoading: boolean = false,
 ): TemplateResult {
   return html`
     <ha-card
       class="calendar-card-pro ${maxHeightSet ? 'max-height-set' : ''}"
       style=${styleMap(customStyles)}
       tabindex="0"
+      aria-busy=${isLoading ? 'true' : 'false'}
       @keydown=${handlers.keyDown}
       @pointerdown=${handlers.pointerDown}
       @pointerup=${handlers.pointerUp}
@@ -59,6 +61,13 @@ export function renderMainCardStructure(
       @pointerleave=${handlers.pointerLeave}
     >
       <ha-ripple></ha-ripple>
+      ${isLoading
+        ? html`
+            <div class="loading-indicator">
+              <div class="loading-spinner"></div>
+            </div>
+          `
+        : ''}
 
       <!-- Title is always rendered with the same structure, even if empty -->
       <div class="header-container">

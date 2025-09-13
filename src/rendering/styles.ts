@@ -625,4 +625,31 @@ export const cardStyles = css`
   .error {
     color: var(--error-color);
   }
+
+  /* ===== LOADING INDICATOR ===== */
+
+  .loading-indicator {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 100;
+  }
+
+  .loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--divider-color, #e0e0e0);
+    border-top: 2px solid var(--primary-color, #03a9f4);
+    border-radius: 50%;
+    animation: loading-spin 1s linear infinite;
+  }
+
+  @keyframes loading-spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
