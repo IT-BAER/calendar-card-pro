@@ -455,8 +455,20 @@ export function groupEventsByDay(
   if (config.max_empty_days > 0 || days.length === 0) {
     const translations = Localize.getTranslations(language);
 
-    // Always start from the configured reference date
-    const startDateForEmptyDays = new Date(referenceDate);
+    // Get today's date normalized to midnight for comparison
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Determine start date for empty days generation
+    let startDateForEmptyDays: Date;
+    if (days.length === 0) {
+      // When there are no events at all, start from today for max_empty_days to work correctly
+      // This ensures max_empty_days only controls future empty days
+      startDateForEmptyDays = new Date(today);
+    } else {
+      // When there are events, start from the configured reference date
+      startDateForEmptyDays = new Date(referenceDate);
+    }
 
     // Determine the end date for empty days generation based on mode and parameters
     let endDateForEmptyDays: Date;
@@ -513,10 +525,6 @@ export function groupEventsByDay(
 
     // Track how many empty days we've added for "next days" (today and future) to respect max_empty_days limit
     let nextDaysEmptyCount = 0;
-
-    // Get today's date normalized to midnight for comparison (only count today and future days towards the limit)
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Generate empty days for any missing dates in the range
     for (let i = 0; i <= dayDiff; i++) {
