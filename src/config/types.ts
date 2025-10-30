@@ -89,6 +89,11 @@ export interface Config {
   show_time: boolean;
   show_single_allday_time: boolean;
   time_24h: boolean | 'system';
+  /**
+   * Timezone to use for displaying event times. Use the string 'browser' to use the
+   * viewer's local browser timezone, or an IANA timezone identifier like 'Europe/Berlin'.
+   */
+  timezone?: string;
   show_end_time: boolean;
   time_font_size: string;
   time_color: string;

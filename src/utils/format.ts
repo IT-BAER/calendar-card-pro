@@ -50,6 +50,9 @@ export function formatEventTime(
 
   const translations = Localize.getTranslations(language);
 
+  // Determine effective timezone (undefined = use browser/local)
+  const timeZone = config.timezone && config.timezone !== 'browser' ? config.timezone : undefined;
+
   if (isAllDayEvent) {
     const adjustedEndDate = new Date(endDate);
     // For all-day events, the end date is exclusive in iCal format
@@ -81,6 +84,7 @@ export function formatEventTime(
         useNativeFormatting,
         use24h,
         hass,
+        timeZone,
       ),
     );
   }
@@ -94,6 +98,7 @@ export function formatEventTime(
       useNativeFormatting,
       use24h,
       hass,
+      timeZone,
     ),
   );
 }
@@ -206,7 +211,22 @@ export function getLocalDateKey(date: Date): string {
  * @param use24h Whether to use 24-hour format
  * @returns Formatted time string
  */
-export function formatTime(date: Date, use24h = true): string {
+export function formatTime(date: Date, use24h = true, timeZone?: string): string {
+  // If a timezone is provided (and not the special 'browser' value), prefer Intl formatting
+  if (timeZone && timeZone !== 'browser') {
+    try {
+      const options: Intl.DateTimeFormatOptions = {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: !use24h,
+        timeZone,
+      };
+      return new Intl.DateTimeFormat(undefined, options).format(date as Date);
+    } catch {
+      // Fall through to manual formatting on error
+    }
+  }
+
   let hours = date.getHours();
   const minutes = date.getMinutes();
 
@@ -350,21 +370,22 @@ function formatSingleDayTime(
   useNativeFormatting: boolean,
   use24h: boolean = true,
   hass?: Types.Hass | null,
+  timeZone?: string,
 ): string {
   if (useNativeFormatting && hass?.locale) {
     // Use the helper to determine time format preference
     const use24hFormat = Helpers.getTimeFormat24h(hass.locale, use24h);
 
-    // Use our formatter with the detected format preference
+    // Use our formatter with the detected format preference (and timezone if provided)
     return showEndTime
-      ? `${formatTime(startDate, use24hFormat)} - ${formatTime(endDate, use24hFormat)}`
-      : formatTime(startDate, use24hFormat);
+      ? `${formatTime(startDate, use24hFormat, timeZone)} - ${formatTime(endDate, use24hFormat, timeZone)}`
+      : formatTime(startDate, use24hFormat, timeZone);
   }
 
   // For explicit settings, use our formatter with the specified format
   return showEndTime
-    ? `${formatTime(startDate, use24h)} - ${formatTime(endDate, use24h)}`
-    : formatTime(startDate, use24h);
+    ? `${formatTime(startDate, use24h, timeZone)} - ${formatTime(endDate, use24h, timeZone)}`
+    : formatTime(startDate, use24h, timeZone);
 }
 
 /**
@@ -385,6 +406,7 @@ function formatMultiDayTime(
   useNativeFormatting: boolean,
   use24h: boolean = true,
   hass?: Types.Hass | null,
+  timeZone?: string,
 ): string {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -396,9 +418,9 @@ function formatMultiDayTime(
     if (useNativeFormatting && hass?.locale) {
       // Use the helper to determine time format preference
       const use24hFormat = Helpers.getTimeFormat24h(hass.locale, use24h);
-      return formatTime(date, use24hFormat);
+      return formatTime(date, use24hFormat, timeZone);
     }
-    return formatTime(date, use24h);
+    return formatTime(date, use24h, timeZone);
   };
 
   // Format the end time part based on when the event ends

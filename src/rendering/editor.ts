@@ -17,6 +17,7 @@ import * as Types from '../config/types';
 import * as Config from '../config/config';
 import * as Helpers from '../utils/helpers';
 import * as Localize from '../translations/localize';
+import { makeTimezoneOptions } from '../utils/timezones';
 
 // Import Material Design icons
 import {
@@ -326,26 +327,35 @@ export class CalendarCardProEditor extends LitElement {
    * @param config The updated config
    */
   private _fireConfigChanged(config: Types.Config): void {
+    // Update internal config for UI rendering (keep full config)
+    this._config = config;
+    // Only keep non-default values from the editor and preserve unknown top-level extras
     // Filter out default values to minimize YAML bloat
-    const minimalConfig = Helpers.filterDefaultValues(
+    const minimalConfigFiltered = Helpers.filterDefaultValues(
       config as unknown as Record<string, unknown>,
       Config.DEFAULT_CONFIG as unknown as Record<string, unknown>,
     );
 
     // Merge back unknown keys captured from the original YAML and any extras (e.g., card_mod)
-    // Priority: minimalConfig (latest changes) overrides extras, which override original raw.
-    // Start with raw config from HA, overlay editor-captured extras, then overlay the minimal edits
+    // IMPORTANT: Do not re-introduce known keys that were intentionally cleared (i.e. set back to defaults)
+    // Build a base of extras only (top-level keys that are NOT part of the known DEFAULT_CONFIG)
     const baseWithExtras = { ...(this._originalConfigRaw || {}), ...(this._externalExtras || {}) };
-    const mergedConfig = this._deepMergeUnknown(baseWithExtras, minimalConfig) as Record<
+    const extrasToMerge: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(baseWithExtras)) {
+      // Only preserve unknown top-level keys; skip known config keys so cleared/defaulted values
+      // are not reintroduced into the merged config.
+      if (!Object.prototype.hasOwnProperty.call(Config.DEFAULT_CONFIG, k)) {
+        extrasToMerge[k] = v;
+      }
+    }
+
+    const merged = this._deepMergeUnknown(extrasToMerge, minimalConfigFiltered) as Record<
       string,
       unknown
     >;
 
-    // Update internal config for UI rendering (keep full config)
-    this._config = config;
-
-    // Send only non-default values to Home Assistant
-    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: mergedConfig } }));
+    // Send only non-default values to Home Assistant (plus unknown extras)
+    this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: merged } }));
   }
 
   /**
@@ -739,8 +749,8 @@ export class CalendarCardProEditor extends LitElement {
             <div class="helper-text">${this._getTranslation('max_empty_days_note')}</div>
             ${this.addBooleanField('filter_duplicates', this._getTranslation('filter_duplicates'))}
 
-            <!-- Language & Time Formats -->
-            <h3>${this._getTranslation('language_time_formats')}</h3>
+            <!-- Language & Time -->
+            <h3>${this._getTranslation('language_time')}</h3>
             ${this.addSelectField(
               'language_mode',
               this._getTranslation('language_mode'),
@@ -764,6 +774,16 @@ export class CalendarCardProEditor extends LitElement {
               { value: 'true', label: this._getTranslation('24h') },
               { value: 'false', label: this._getTranslation('12h') },
             ])}
+            <!-- Timezone selection -->
+            ${(() => {
+              const tzOptions = [
+                { value: 'browser', label: this._getTranslation('timezone_use_browser') },
+                { value: 'UTC', label: 'UTC' },
+              ].concat(makeTimezoneOptions(this.hass?.locale?.language ?? 'en-US', new Date()));
+
+              return this.addSelectField('timezone', this._getTranslation('timezone'), tzOptions);
+            })()}
+            <div class="helper-text">${this._getTranslation('timezone_note')}</div>
           `,
         )}
 

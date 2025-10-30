@@ -26,6 +26,8 @@ export const DEFAULT_CONFIG: Types.Config = {
   filter_duplicates: false,
   split_multiday_events: false,
   language: undefined,
+  // Timezone used to display event times. 'browser' uses the viewer's local timezone.
+  timezone: 'browser',
 
   // Header
   title: undefined,
