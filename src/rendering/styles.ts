@@ -138,16 +138,16 @@ export const cardStyles = css`
     padding-bottom: 1px;
     hyphens: auto;
 
-    /* Hide scrollbars across browsers */
+    /* Hide scrollbars across browsers while keeping scroll functionality */
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
   }
 
-  /* Show scrollbars on hover */
-  .content-container:hover {
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: var(--secondary-text-color) transparent; /* Firefox */
-    -ms-overflow-style: auto; /* IE/Edge */
+  /* Hide WebKit scrollbar (Chrome, Safari, Edge) */
+  .content-container::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .card-header-placeholder {

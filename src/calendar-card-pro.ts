@@ -102,6 +102,7 @@ class CalendarCardPro extends LitElement {
   private _refreshTimerId?: number;
   private _lastUpdateTime = Date.now();
   private _weatherUnsubscribers: Array<() => void> = [];
+  private _isUpdating = false;
 
   // Interaction state
   private _activePointerId: number | null = null;
@@ -246,6 +247,14 @@ class CalendarCardPro extends LitElement {
       if (now - this._lastUpdateTime > Constants.TIMING.VISIBILITY_REFRESH_THRESHOLD) {
         Logger.debug('Visibility changed to visible, updating events');
         this.updateEvents();
+      }
+      // Restart the timer when becoming visible
+      this.startRefreshTimer();
+    } else {
+      // Stop timer when hidden to prevent background processing
+      if (this._refreshTimerId) {
+        clearTimeout(this._refreshTimerId);
+        this._refreshTimerId = undefined;
       }
     }
   };
@@ -482,11 +491,19 @@ class CalendarCardPro extends LitElement {
   async updateEvents(force = false): Promise<void> {
     Logger.debug(`Updating events (force=${force})`);
 
+    // Prevent concurrent updates
+    if (this._isUpdating) {
+      Logger.debug('Update already in progress, skipping');
+      return;
+    }
+
     // Skip update if no Home Assistant connection or no entities
     if (!this.safeHass || !this.config.entities.length) {
       this.isLoading = false;
       return;
     }
+
+    this._isUpdating = true;
 
     try {
       // Set loading state first (triggers render with stable DOM)
@@ -515,6 +532,8 @@ class CalendarCardPro extends LitElement {
     } catch (error) {
       Logger.error('Failed to update events:', error);
       this.isLoading = false;
+    } finally {
+      this._isUpdating = false;
     }
 
     // Ensure we have weather forecast subscriptions too
