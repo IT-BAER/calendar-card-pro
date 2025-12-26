@@ -63,6 +63,8 @@ export class CalendarCardProEditor extends LitElement {
   private _externalExtras: Record<string, unknown> = {};
   // Keep the last raw config provided by HA/code editor to preserve any keys we don't manage
   private _originalConfigRaw: Record<string, unknown> = {};
+  // Flag to prevent firing config-changed during initialization
+  private _isInitializing: boolean = true;
 
   // Deep-merge helper: preserves unknown keys from source while letting target override known ones
   private _deepMergeUnknown(source: unknown, target: unknown): unknown {
@@ -147,6 +149,9 @@ export class CalendarCardProEditor extends LitElement {
    * @param config Partial configuration object
    */
   setConfig(config: Partial<Types.Config>): void {
+    // Set initializing flag to prevent spurious config-changed events during UI setup
+    this._isInitializing = true;
+    
     // Handle migration from show_empty_days (boolean) to max_empty_days (number) before processing
     let migratedConfig = { ...config };
     if ('show_empty_days' in config && !('max_empty_days' in config)) {
@@ -180,6 +185,14 @@ export class CalendarCardProEditor extends LitElement {
     }
 
     this._config = { ...Config.DEFAULT_CONFIG, ...migratedConfig };
+    
+    // Allow config-changed events after the first render cycle completes
+    // This prevents HA form components from firing value-changed during initialization
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this._isInitializing = false;
+      });
+    });
   }
 
   /**
@@ -327,6 +340,13 @@ export class CalendarCardProEditor extends LitElement {
    * @param config The updated config
    */
   private _fireConfigChanged(config: Types.Config): void {
+    // Skip firing config-changed during initialization to prevent overwriting card_mod etc.
+    if (this._isInitializing) {
+      // Still update internal config for UI rendering
+      this._config = config;
+      return;
+    }
+    
     // Update internal config for UI rendering (keep full config)
     this._config = config;
     // Only keep non-default values from the editor and preserve unknown top-level extras

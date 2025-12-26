@@ -38,3 +38,6 @@ tmp/
 
 # Ignore documentation build artifacts
 docs/_build/
+.github/agents/TaskSync.agent.md
+.github/instructions/copilot-instructions.md
+.github/instructions/tasksync.instructions.md
